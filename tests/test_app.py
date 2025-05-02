@@ -1,11 +1,9 @@
-import sys
-import os
+# tests/test_app.py
+import pytest
+from app import app  # Updated import to directly refer to app.py
 
-# Add the 'app' directory (inside 'micro') to the system path so it can be imported correctly
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'app')))
-
-from app.main import app
- 
-def test_app():
-    # Test if the Flask app is created successfully
-    assert app is not None
+def test_home():
+    client = app.test_client()
+    response = client.get('/')
+    assert response.status_code == 200
+    assert response.data == b"Hello, world!"
