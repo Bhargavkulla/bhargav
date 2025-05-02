@@ -1,31 +1,23 @@
 pipeline {
     agent any
-
     environment {
-        DOCKER_IMAGE = 'bhargavakulla/java-microservice'
-        DOCKER_REGISTRY = 'docker.io'
-        KUBERNETES_NAMESPACE = 'default'
+        DOCKER_IMAGE = 'bhargav/microservice-demo'
+        DOCKER_TAG = 'latest'
+        K8S_DEPLOYMENT_NAME = 'microservice-deployment'
+        K8S_NAMESPACE = 'default'
     }
-
     stages {
-        stage('Checkout') {
+        stage('Declarative: Checkout SCM') {
             steps {
-                // Checkout code from GitHub
-                git branch: 'main', url: 'https://github.com/Bhargavkulla/bhargav.git'
+                checkout scm
             }
         }
-
+        
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Create a Python virtual environment
                     sh 'python3 -m venv venv'
-
-                    // Activate the virtual environment
-                    sh '. venv/bin/activate'
-
-                    // Install dependencies
-                    sh 'pip install -r requirements.txt'
+                    sh '. venv/bin/activate && pip install -r requirements.txt'
                 }
             }
         }
@@ -33,8 +25,11 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Set PYTHONPATH to the current working directory (where app is located)
-                    sh 'export PYTHONPATH=$PYTHONPATH:$(pwd) && pytest tests/test_app.py --maxfail=1 --disable-warnings -q'
+                    // Ensure PYTHONPATH includes the root of your project
+                    sh '''
+                    export PYTHONPATH=${PYTHONPATH}:/var/lib/jenkins/workspace/bhargav
+                    pytest tests/test_app.py --maxfail=1 --disable-warnings -q
+                    '''
                 }
             }
         }
@@ -42,8 +37,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build Docker image
-                    sh 'docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE .'
+                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
                 }
             }
         }
@@ -51,10 +45,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    // Login to Docker Hub
-                    withDockerRegistry([credentialsId: 'docker-hub-credentials']) {
-                        sh 'docker push $DOCKER_REGISTRY/$DOCKER_IMAGE'
-                    }
+                    sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
                 }
             }
         }
@@ -62,11 +53,17 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Apply Kubernetes manifests
-                    sh 'kubectl apply -f k8s/deployment.yaml'
-                    sh 'kubectl apply -f k8s/service.yaml'
+                    sh '''
+                    kubectl apply -f k8s/deployment.yaml
+                    kubectl apply -f k8s/service.yaml
+                    '''
                 }
             }
+        }
+    }
+    post {
+        always {
+            cleanWs()
         }
     }
 }
