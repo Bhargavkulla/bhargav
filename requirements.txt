@@ -1,4 +1,4 @@
-pytest
-flask
-Werkzeug>=2.2.2
+Flask==2.2.2
+Werkzeug==2.2.2
+
 
