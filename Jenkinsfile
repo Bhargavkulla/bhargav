@@ -18,9 +18,14 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Install Python dependencies
+                    // Create a Python virtual environment
                     sh 'python3 -m venv venv'
-                    sh 'source venv/bin/activate && pip install -r requirements.txt'
+
+                    // Activate the virtual environment
+                    sh '. venv/bin/activate'
+
+                    // Install dependencies
+                    sh 'pip install -r requirements.txt'
                 }
             }
         }
@@ -28,8 +33,8 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Run pytest tests
-                    sh 'source venv/bin/activate && pytest tests/test_app.py --maxfail=1 --disable-warnings -q'
+                    // Run pytest tests (using the correct activation method)
+                    sh '. venv/bin/activate && pytest tests/test_app.py --maxfail=1 --disable-warnings -q'
                 }
             }
         }
@@ -38,7 +43,7 @@ pipeline {
             steps {
                 script {
                     // Build Docker image
-                    sh 'docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE .'
+                    sh "docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE ."
                 }
             }
         }
@@ -48,7 +53,7 @@ pipeline {
                 script {
                     // Login to Docker Hub
                     withDockerRegistry([credentialsId: 'docker-hub-credentials']) {
-                        sh 'docker push $DOCKER_REGISTRY/$DOCKER_IMAGE'
+                        sh "docker push $DOCKER_REGISTRY/$DOCKER_IMAGE"
                     }
                 }
             }
