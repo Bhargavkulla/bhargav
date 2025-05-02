@@ -33,8 +33,8 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Run pytest tests (using the correct activation method)
-                    sh '. venv/bin/activate && pytest tests/test_app.py --maxfail=1 --disable-warnings -q'
+                    // Set PYTHONPATH to the current working directory (where app is located)
+                    sh 'export PYTHONPATH=$PYTHONPATH:$(pwd) && pytest tests/test_app.py --maxfail=1 --disable-warnings -q'
                 }
             }
         }
@@ -43,7 +43,7 @@ pipeline {
             steps {
                 script {
                     // Build Docker image
-                    sh "docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE ."
+                    sh 'docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE .'
                 }
             }
         }
@@ -53,7 +53,7 @@ pipeline {
                 script {
                     // Login to Docker Hub
                     withDockerRegistry([credentialsId: 'docker-hub-credentials']) {
-                        sh "docker push $DOCKER_REGISTRY/$DOCKER_IMAGE"
+                        sh 'docker push $DOCKER_REGISTRY/$DOCKER_IMAGE'
                     }
                 }
             }
