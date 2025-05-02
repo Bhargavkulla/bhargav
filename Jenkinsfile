@@ -1,23 +1,31 @@
 pipeline {
     agent any
+
     environment {
-        DOCKER_IMAGE = 'bhargav/microservice-demo'
-        DOCKER_TAG = 'latest'
-        K8S_DEPLOYMENT_NAME = 'microservice-deployment'
-        K8S_NAMESPACE = 'default'
+        VENV_PATH = 'venv'
     }
+
     stages {
-        stage('Declarative: Checkout SCM') {
+        stage('Checkout SCM') {
             steps {
                 checkout scm
             }
         }
-        
+
         stage('Install Dependencies') {
             steps {
                 script {
+                    // Remove any existing virtual environment
+                    sh 'rm -rf venv'
+
+                    // Create a new virtual environment
                     sh 'python3 -m venv venv'
-                    sh '. venv/bin/activate && pip install -r requirements.txt'
+
+                    // Activate the virtual environment
+                    sh '. venv/bin/activate'
+
+                    // Install dependencies from requirements.txt
+                    sh 'pip install -r requirements.txt'
                 }
             }
         }
@@ -25,11 +33,8 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Ensure PYTHONPATH includes the root of your project
-                    sh '''
-                    export PYTHONPATH=${PYTHONPATH}:/var/lib/jenkins/workspace/bhargav
-                    pytest tests/test_app.py --maxfail=1 --disable-warnings -q
-                    '''
+                    // Set PYTHONPATH and run the tests
+                    sh 'export PYTHONPATH=$PYTHONPATH:/var/lib/jenkins/workspace/bhargav && pytest tests/test_app.py --maxfail=1 --disable-warnings -q'
                 }
             }
         }
@@ -37,7 +42,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                    // Build Docker image
+                    sh 'docker build -t bhargavkulla/bhargav:latest .'
                 }
             }
         }
@@ -45,7 +51,8 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
+                    // Push Docker image to Docker Hub
+                    sh 'docker push bhargavkulla/bhargav:latest'
                 }
             }
         }
@@ -53,14 +60,13 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh '''
-                    kubectl apply -f k8s/deployment.yaml
-                    kubectl apply -f k8s/service.yaml
-                    '''
+                    // Deploy Docker image to Kubernetes
+                    sh 'kubectl apply -f kubernetes/deployment.yaml'
                 }
             }
         }
     }
+
     post {
         always {
             cleanWs()
