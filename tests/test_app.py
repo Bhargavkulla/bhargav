@@ -1,6 +1,6 @@
 # tests/test_app.py
 import pytest
-from app import app  # Updated import to directly refer to app.py
+from app.app import app  # Ensure that the correct app is imported from the right location
 
 def test_home():
     client = app.test_client()
