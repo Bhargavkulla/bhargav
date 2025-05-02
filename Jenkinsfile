@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        VENV_PATH = 'venv'
+        PYTHONPATH = "${WORKSPACE}"
     }
 
     stages {
@@ -11,57 +11,56 @@ pipeline {
                 checkout scm
             }
         }
-
+        
         stage('Install Dependencies') {
             steps {
                 script {
-                    // Remove any existing virtual environment
                     sh 'rm -rf venv'
-
-                    // Create a new virtual environment
                     sh 'python3 -m venv venv'
-
-                    // Activate the virtual environment
-                    sh '. venv/bin/activate'
-
-                    // Install dependencies from requirements.txt
-                    sh 'pip install -r requirements.txt'
+                    sh '. venv/bin/activate && pip install -r requirements.txt'
                 }
             }
         }
-
+        
         stage('Run Tests') {
             steps {
                 script {
-                    // Set PYTHONPATH and run the tests
-                    sh 'export PYTHONPATH=$PYTHONPATH:/var/lib/jenkins/workspace/bhargav && pytest tests/test_app.py --maxfail=1 --disable-warnings -q'
+                    sh '. venv/bin/activate && pytest tests/test_app.py --maxfail=1 --disable-warnings -q'
                 }
             }
         }
-
+        
         stage('Build Docker Image') {
+            when {
+                branch 'main'
+            }
             steps {
                 script {
-                    // Build Docker image
-                    sh 'docker build -t bhargavkulla/bhargav:latest .'
+                    sh 'docker build -t bhargavakulla/microservice .'
                 }
             }
         }
-
+        
         stage('Push Docker Image') {
+            when {
+                branch 'main'
+            }
             steps {
                 script {
-                    // Push Docker image to Docker Hub
-                    sh 'docker push bhargavkulla/bhargav:latest'
+                    withDockerRegistry(credentialsId: 'docker-hub-credentials') {
+                        sh 'docker push bhargavakulla/microservice'
+                    }
                 }
             }
         }
 
         stage('Deploy to Kubernetes') {
+            when {
+                branch 'main'
+            }
             steps {
                 script {
-                    // Deploy Docker image to Kubernetes
-                    sh 'kubectl apply -f kubernetes/deployment.yaml'
+                    sh 'kubectl apply -f k8s/deployment.yaml'
                 }
             }
         }
